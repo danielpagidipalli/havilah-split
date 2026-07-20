@@ -111,6 +111,7 @@ const GROUPS = [
 let members = [];   // {id,name,in_bachelors,in_marriage,in_suits}
 let expenses = [];  // {id,member,grp,item,amount}
 let activeGroup = "Bachelors";
+let lastSig = "";
 
 const inr = n => "₹" + Number(n||0).toLocaleString("en-IN",{maximumFractionDigits:0});
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -135,7 +136,8 @@ async function loadAll(){
     expenses = e.data || [];
     hideErr();
     setSync("Synced " + new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}));
-    render();
+    const sig = JSON.stringify([members, expenses]);
+    if(sig !== lastSig){ lastSig = sig; render(); }
   }catch(err){
     setSync("Connection problem");
     showErr("Could not load data: " + (err.message || err) + ". Check internet, then tap Refresh.");
@@ -249,6 +251,18 @@ async function copySummary(){
 
 // ---------------- RENDER ----------------
 function render(){
+  // preserve whatever the user is typing (values + focus + cursor)
+  const keepIds = ["newName","payerSel","itemInp","amtInp"];
+  const keep = {};
+  keepIds.forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) keep[id] = {
+      v: el.value,
+      focused: document.activeElement === el,
+      s: el.selectionStart, e: el.selectionEnd
+    };
+  });
+
   // grand total
   const grand = expenses.reduce((s,e)=>s+Number(e.amount),0);
   document.getElementById("grandline").textContent =
@@ -349,6 +363,19 @@ function render(){
   }
 
   document.getElementById("groupPanel").innerHTML = html;
+
+  // restore typing + focus + cursor after rebuild
+  keepIds.forEach(id=>{
+    const el = document.getElementById(id);
+    const k = keep[id];
+    if(el && k){
+      el.value = k.v;
+      if(k.focused){
+        el.focus({preventScroll:true});
+        try{ el.setSelectionRange(k.s, k.e); }catch(err){}
+      }
+    }
+  });
 }
 
 // init + auto-refresh
