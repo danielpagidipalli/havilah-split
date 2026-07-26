@@ -28,7 +28,7 @@
   input:focus,select:focus,button:focus-visible{outline:2px solid var(--maroon); outline-offset:2px;}
   input::placeholder{color:var(--muted);}
   .btn{background:var(--maroon); color:#FDF9F2; border:none; border-radius:8px; padding:10px 18px; font-weight:600; font-size:14px; cursor:pointer; white-space:nowrap; font-family:'Inter',sans-serif;}
-  .btn:disabled{opacity:.5; cursor:not-allowed;}
+  .btn-small{background:var(--green); color:#fff; border:none; border-radius:8px; padding:7px 12px; font-weight:600; font-size:12.5px; cursor:pointer; font-family:'Inter',sans-serif; white-space:nowrap;}
   .row{display:flex; gap:8px;}
   .member-item{display:flex; align-items:center; justify-content:space-between; gap:10px; border-bottom:1px solid var(--line); padding:10px 0; flex-wrap:wrap;}
   .member-name{font-weight:600; font-size:14.5px; min-width:90px;}
@@ -39,6 +39,8 @@
   .tabs{display:flex; gap:8px; flex-wrap:wrap;}
   .tab{background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:9px 14px; font-size:13.5px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif;}
   .tab.active{background:var(--maroon); color:#FDF9F2; border-color:var(--maroon);}
+  .tab.overall{border-color:var(--gold); color:var(--gold);}
+  .tab.overall.active{background:var(--gold); color:#fff;}
   .tab small{font-weight:400; opacity:.75; margin-left:5px; font-size:11.5px;}
   .stats{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
   .stat{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px 8px; text-align:center; box-shadow:0 1px 3px rgba(60,40,20,.05);}
@@ -53,13 +55,18 @@
   .gets{color:var(--green); font-weight:600;}
   .settled{color:var(--muted); font-weight:600;}
   .settle-card{border:1.5px solid var(--gold);}
-  .txn{background:var(--panel2); border-radius:10px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; font-size:15px; margin-bottom:8px;}
+  .txn{background:var(--panel2); border-radius:10px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:15px; margin-bottom:8px; flex-wrap:wrap;}
   .txn .amt{font-family:'Cormorant Garamond',serif; font-size:19px; color:var(--maroon); font-weight:600;}
+  .txn.done{opacity:.75; border:1px solid var(--green); background:#F0F6EE;}
   .fullbtn{width:100%; margin-top:8px;}
   .muted-note{color:var(--muted); font-size:13.5px;}
   .error-banner{background:#FBEAE6; border:1px solid var(--red); color:var(--red); border-radius:10px; padding:12px 14px; font-size:13px; display:none;}
+  .ov-member{border-bottom:1px solid var(--line); padding:12px 0;}
+  .ov-name{font-weight:700; font-size:15px; margin-bottom:6px;}
+  .ov-line{display:flex; justify-content:space-between; font-size:13.5px; padding:2px 0;}
+  .ov-line .g{color:var(--muted);}
+  .ov-total{display:flex; justify-content:space-between; font-size:14px; padding-top:6px; margin-top:4px; border-top:1px dashed var(--line); font-weight:700;}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
-  @media(max-width:420px){ .member-item{align-items:flex-start;} }
 </style>
 </head>
 <body>
@@ -76,10 +83,8 @@
 
 <main>
   <div class="error-banner" id="errbox"></div>
-
   <div class="notice">Shared board — everyone with the link sees and edits the same list. No login needed.</div>
 
-  <!-- MEMBERS -->
   <div class="card">
     <div class="label">Members — tick the groups each person belongs to</div>
     <div class="row">
@@ -89,10 +94,7 @@
     <div id="memberList" style="margin-top:6px;"></div>
   </div>
 
-  <!-- GROUP TABS -->
   <div class="tabs" id="tabs"></div>
-
-  <!-- GROUP PANEL -->
   <div id="groupPanel"></div>
 </main>
 
@@ -108,39 +110,39 @@ const GROUPS = [
   { key:"Suits",     col:"in_suits"     },
 ];
 
-let members = [];   // {id,name,in_bachelors,in_marriage,in_suits}
-let expenses = [];  // {id,member,grp,item,amount}
+let members = [];
+let expenses = [];
+let payments = [];
 let activeGroup = "Bachelors";
 let lastSig = "";
 
 const inr = n => "₹" + Number(n||0).toLocaleString("en-IN",{maximumFractionDigits:0});
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
-function showErr(msg){
-  const b = document.getElementById("errbox");
-  b.textContent = msg; b.style.display = "block";
-}
-function hideErr(){ document.getElementById("errbox").style.display = "none"; }
-
+function showErr(msg){ const b=document.getElementById("errbox"); b.textContent=msg; b.style.display="block"; }
+function hideErr(){ document.getElementById("errbox").style.display="none"; }
 function setSync(t){ document.getElementById("syncstate").textContent = "● " + t; }
 
 async function loadAll(){
   try{
-    const [m, e] = await Promise.all([
+    const [m, e, p] = await Promise.all([
       db.from("members").select("*").order("created_at"),
       db.from("expenses").select("*").order("created_at"),
+      db.from("payments").select("*").order("created_at"),
     ]);
-    if (m.error) throw m.error;
-    if (e.error) throw e.error;
+    if(m.error) throw m.error;
+    if(e.error) throw e.error;
+    if(p.error) throw p.error;
     members = m.data || [];
     expenses = e.data || [];
+    payments = p.data || [];
     hideErr();
     setSync("Synced " + new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}));
-    const sig = JSON.stringify([members, expenses]);
+    const sig = JSON.stringify([members, expenses, payments]);
     if(sig !== lastSig){ lastSig = sig; render(); }
   }catch(err){
     setSync("Connection problem");
-    showErr("Could not load data: " + (err.message || err) + ". Check internet, then tap Refresh.");
+    showErr("Could not load data: " + (err.message || err) + ". If this mentions the 'payments' table, run the payments SQL in Supabase. Then tap Refresh.");
   }
 }
 
@@ -149,9 +151,7 @@ async function addMember(){
   const inp = document.getElementById("newName");
   const name = inp.value.trim();
   if(!name) return;
-  if(members.some(m => m.name.toLowerCase() === name.toLowerCase())){
-    alert(name + " is already added."); return;
-  }
+  if(members.some(m => m.name.toLowerCase() === name.toLowerCase())){ alert(name + " is already added."); return; }
   const {error} = await db.from("members").insert({name});
   if(error){ showErr("Could not add member: " + error.message); return; }
   inp.value = "";
@@ -165,8 +165,8 @@ async function toggleGroup(id, col, current){
 }
 
 async function deleteMember(id, name){
-  if(expenses.some(e => e.member === name)){
-    alert(name + " has expenses logged. Delete those expenses first."); return;
+  if(expenses.some(e => e.member === name) || payments.some(p => p.from_member===name || p.to_member===name)){
+    alert(name + " has expenses or payments logged. Delete those first."); return;
   }
   if(!confirm("Remove " + name + " from the board?")) return;
   const {error} = await db.from("members").delete().eq("id", id);
@@ -195,11 +195,27 @@ async function deleteExpense(id){
   loadAll();
 }
 
+// ---------------- PAYMENTS (Mark as Paid) ----------------
+async function markPaid(from, to, amt, grp){
+  if(!confirm(from + " paid " + to + " " + inr(amt) + " (" + grp + ") — mark as done?")) return;
+  const {error} = await db.from("payments").insert({grp, from_member:from, to_member:to, amount:amt});
+  if(error){ showErr("Could not record payment: " + error.message); return; }
+  loadAll();
+}
+
+async function undoPayment(id){
+  if(!confirm("Undo this payment record?")) return;
+  const {error} = await db.from("payments").delete().eq("id", id);
+  if(error){ showErr("Could not undo: " + error.message); return; }
+  loadAll();
+}
+
 // ---------------- CALC ----------------
 function groupCalc(gkey){
   const g = GROUPS.find(x => x.key === gkey);
   const gMembers = members.filter(m => m[g.col]);
   const gExps = expenses.filter(e => e.grp === gkey);
+  const gPays = payments.filter(p => p.grp === gkey);
   const total = gExps.reduce((s,e)=>s+Number(e.amount),0);
   const share = gMembers.length ? total / gMembers.length : 0;
   const paidBy = {};
@@ -207,18 +223,20 @@ function groupCalc(gkey){
   gExps.forEach(e => { paidBy[e.member] = (paidBy[e.member]||0) + Number(e.amount); });
   const balances = {};
   gMembers.forEach(m => balances[m.name] = (paidBy[m.name]||0) - share);
-  // note: if a non-member somehow paid, count them as pure creditor
-  gExps.forEach(e => {
-    if(!(e.member in balances)) balances[e.member] = (balances[e.member]||0) + Number(e.amount);
+  gExps.forEach(e => { if(!(e.member in balances)) balances[e.member] = (balances[e.member]||0) + Number(e.amount); });
+  // settlements already paid adjust the balance (payer moves up, receiver moves down)
+  gPays.forEach(p => {
+    if(p.from_member in balances) balances[p.from_member] += Number(p.amount);
+    if(p.to_member   in balances) balances[p.to_member]   -= Number(p.amount);
   });
-  return { gMembers, gExps, total, share, paidBy, balances, settlements: settle(balances) };
+  return { gMembers, gExps, gPays, total, share, paidBy, balances, settlements: settle(balances) };
 }
 
 function settle(balances){
   const cr=[], de=[];
   Object.entries(balances).forEach(([n,b])=>{
-    if(b > 0.01) cr.push({n, a:b});
-    else if(b < -0.01) de.push({n, a:-b});
+    if(b > 0.5) cr.push({n, a:b});
+    else if(b < -0.5) de.push({n, a:-b});
   });
   cr.sort((x,y)=>y.a-x.a); de.sort((x,y)=>y.a-x.a);
   const t=[]; let i=0,j=0;
@@ -226,7 +244,7 @@ function settle(balances){
     const p=Math.min(de[i].a, cr[j].a);
     t.push({from:de[i].n, to:cr[j].n, amt:p});
     de[i].a-=p; cr[j].a-=p;
-    if(de[i].a<0.01)i++; if(cr[j].a<0.01)j++;
+    if(de[i].a<0.5)i++; if(cr[j].a<0.5)j++;
   }
   return t;
 }
@@ -239,58 +257,96 @@ async function copySummary(){
   msg += "Members in this group: " + c.gMembers.length + "\n";
   msg += "Equal share: " + inr(Math.round(c.share)) + " per person\n\n*Paid:*\n";
   c.gMembers.forEach(m => msg += "• " + m.name + ": " + inr(c.paidBy[m.name]||0) + "\n");
-  msg += "\n*Settlement:*\n";
-  if(!c.settlements.length) msg += "All settled — no payments needed.\n";
+  if(c.gPays.length){
+    msg += "\n*Payments done:*\n";
+    c.gPays.forEach(p => msg += "✓ " + p.from_member + " paid " + p.to_member + " " + inr(p.amount) + "\n");
+  }
+  msg += "\n*Still pending:*\n";
+  if(!c.settlements.length) msg += "All settled — no payments pending. 🎉\n";
   c.settlements.forEach(t => msg += "• " + t.from + " pays " + t.to + " " + inr(Math.round(t.amt)) + "\n");
-  try{ await navigator.clipboard.writeText(msg);
-    const b=document.getElementById("copyBtn");
-    b.textContent="Copied — paste in WhatsApp";
-    setTimeout(()=>{ b.textContent="Copy " + activeGroup + " Summary for WhatsApp"; },2000);
+  copyText(msg, "copyBtn", "Copy " + activeGroup + " Summary for WhatsApp");
+}
+
+async function copyOverall(){
+  let msg = "*HAVILAH WEDDING — Overall Balance*\n\n";
+  const grand = expenses.reduce((s,e)=>s+Number(e.amount),0);
+  msg += "Grand total spent: " + inr(grand) + "\n\n";
+  members.forEach(m => {
+    const lines = [];
+    let tot = 0;
+    GROUPS.forEach(g => {
+      if(m[g.col]){
+        const b = groupCalc(g.key).balances[m.name] || 0;
+        tot += b;
+        lines.push("   " + g.key + ": " + balText(b));
+      }
+    });
+    if(lines.length){
+      msg += "*" + m.name + "* — Total: " + balText(tot) + "\n" + lines.join("\n") + "\n\n";
+    }
+  });
+  msg += "(Payments are settled group by group.)";
+  copyText(msg, "copyOvBtn", "Copy Overall Balance for WhatsApp");
+}
+
+function balText(b){
+  if(Math.abs(b) < 1) return "Settled ✓";
+  return b > 0 ? "gets back " + inr(Math.round(b)) : "owes " + inr(Math.round(-b));
+}
+
+async function copyText(msg, btnId, restore){
+  try{
+    await navigator.clipboard.writeText(msg);
+    const b=document.getElementById(btnId);
+    if(b){ b.textContent="Copied — paste in WhatsApp"; setTimeout(()=>{ b.textContent=restore; },2000); }
   }catch(e){ alert(msg); }
 }
 
 // ---------------- RENDER ----------------
 function render(){
-  // preserve whatever the user is typing (values + focus + cursor)
   const keepIds = ["newName","payerSel","itemInp","amtInp"];
   const keep = {};
   keepIds.forEach(id=>{
     const el = document.getElementById(id);
-    if(el) keep[id] = {
-      v: el.value,
-      focused: document.activeElement === el,
-      s: el.selectionStart, e: el.selectionEnd
-    };
+    if(el) keep[id] = { v:el.value, focused:document.activeElement===el, s:el.selectionStart, e:el.selectionEnd };
   });
 
-  // grand total
   const grand = expenses.reduce((s,e)=>s+Number(e.amount),0);
   document.getElementById("grandline").textContent =
     grand>0 ? "Total across all groups: " + inr(grand) : "Each group splits equally among its own members.";
 
-  // member list
   const ml = document.getElementById("memberList");
   ml.innerHTML = members.map(m => `
     <div class="member-item">
       <span class="member-name">${esc(m.name)}</span>
       <span class="chips">
-        ${GROUPS.map(g => `
-          <span class="chip ${m[g.col] ? "on" : ""}" onclick="toggleGroup('${m.id}','${g.col}',${m[g.col]})">${g.key}</span>
-        `).join("")}
+        ${GROUPS.map(g => `<span class="chip ${m[g.col] ? "on" : ""}" onclick="toggleGroup('${m.id}','${g.col}',${m[g.col]})">${g.key}</span>`).join("")}
       </span>
       <button class="xbtn" aria-label="Remove ${esc(m.name)}" onclick="deleteMember('${m.id}','${esc(m.name)}')">×</button>
     </div>
   `).join("") || `<div class="muted-note" style="margin-top:8px;">Add family members, then tick which groups they belong to.</div>`;
 
-  // tabs
   document.getElementById("tabs").innerHTML = GROUPS.map(g => {
     const c = groupCalc(g.key);
     return `<button class="tab ${g.key===activeGroup?"active":""}" onclick="activeGroup='${g.key}';render();">
       ${g.key}${c.total>0?`<small>${inr(c.total)}</small>`:""}
     </button>`;
-  }).join("");
+  }).join("") + `<button class="tab overall ${activeGroup==='Overall'?'active':''}" onclick="activeGroup='Overall';render();">★ Overall</button>`;
 
-  // group panel
+  document.getElementById("groupPanel").innerHTML =
+    activeGroup === "Overall" ? renderOverall() : renderGroup();
+
+  keepIds.forEach(id=>{
+    const el = document.getElementById(id);
+    const k = keep[id];
+    if(el && k){
+      el.value = k.v;
+      if(k.focused){ el.focus({preventScroll:true}); try{ el.setSelectionRange(k.s,k.e); }catch(err){} }
+    }
+  });
+}
+
+function renderGroup(){
   const c = groupCalc(activeGroup);
   let html = `
     <div class="stats">
@@ -298,11 +354,10 @@ function render(){
       <div class="stat"><div class="k">Group Members</div><div class="v">${c.gMembers.length}</div></div>
       <div class="stat"><div class="k">Share Each</div><div class="v">${inr(Math.round(c.share))}</div></div>
     </div>
-
     <div class="card" style="margin-top:16px;">
       <div class="label">Add expense → ${esc(activeGroup)}</div>`;
   if(c.gMembers.length === 0){
-    html += `<div class="muted-note">No members in ${esc(activeGroup)} yet — tick "${esc(activeGroup)}" for the right people in the member list above.</div>`;
+    html += `<div class="muted-note">No members in ${esc(activeGroup)} yet — tick "${esc(activeGroup)}" for the right people above.</div>`;
   } else {
     html += `
       <div style="display:grid; gap:10px;">
@@ -340,7 +395,7 @@ function render(){
         const b = c.balances[m.name];
         const settled = Math.abs(b) < 1;
         const cls = settled ? "settled" : (b>0 ? "gets" : "owes");
-        const txt = settled ? "Settled" : (b>0 ? "Gets back " + inr(Math.round(b)) : "Owes " + inr(Math.round(-b)));
+        const txt = settled ? "Settled ✓" : (b>0 ? "Gets back " + inr(Math.round(b)) : "Owes " + inr(Math.round(-b)));
         return `<div class="bal-row">
           <div><div style="font-weight:600;">${esc(m.name)}</div>
           <div class="bal-sub">Paid ${inr(c.paidBy[m.name]||0)} · Share ${inr(Math.round(c.share))}</div></div>
@@ -350,35 +405,89 @@ function render(){
     </div>`;
   }
 
-  if(c.settlements.length){
+  if(c.settlements.length || c.gPays.length){
     html += `<div class="card settle-card" style="margin-top:16px;">
-      <div class="label">${esc(activeGroup)} — Who Pays Whom</div>
-      ${c.settlements.map(t=>`
+      <div class="label">${esc(activeGroup)} — Who Pays Whom</div>`;
+    if(c.settlements.length){
+      html += c.settlements.map(t=>`
         <div class="txn">
           <div><span class="owes">${esc(t.from)}</span> <span class="item">pays</span> <span class="gets">${esc(t.to)}</span></div>
-          <div class="amt">${inr(Math.round(t.amt))}</div>
-        </div>`).join("")}
-      <button class="btn fullbtn" id="copyBtn" onclick="copySummary()">Copy ${esc(activeGroup)} Summary for WhatsApp</button>
-    </div>`;
-  }
-
-  document.getElementById("groupPanel").innerHTML = html;
-
-  // restore typing + focus + cursor after rebuild
-  keepIds.forEach(id=>{
-    const el = document.getElementById(id);
-    const k = keep[id];
-    if(el && k){
-      el.value = k.v;
-      if(k.focused){
-        el.focus({preventScroll:true});
-        try{ el.setSelectionRange(k.s, k.e); }catch(err){}
-      }
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span class="amt">${inr(Math.round(t.amt))}</span>
+            <button class="btn-small" onclick="markPaid('${esc(t.from)}','${esc(t.to)}',${Math.round(t.amt)},'${activeGroup}')">✓ Mark Paid</button>
+          </div>
+        </div>`).join("");
+    } else {
+      html += `<div class="muted-note" style="margin-bottom:8px;">All payments done — this group is fully settled! 🎉</div>`;
     }
-  });
+    if(c.gPays.length){
+      html += `<div class="label" style="margin-top:14px;">Completed Payments</div>`;
+      html += c.gPays.map(p=>`
+        <div class="txn done">
+          <div>✓ <span class="gets">${esc(p.from_member)}</span> <span class="item">paid</span> <span style="font-weight:600;">${esc(p.to_member)}</span></div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span class="amt">${inr(p.amount)}</span>
+            <button class="xbtn" title="Undo" onclick="undoPayment('${p.id}')">↩</button>
+          </div>
+        </div>`).join("");
+    }
+    html += `<button class="btn fullbtn" id="copyBtn" onclick="copySummary()">Copy ${esc(activeGroup)} Summary for WhatsApp</button></div>`;
+  }
+  return html;
 }
 
-// init + auto-refresh
+function renderOverall(){
+  const grand = expenses.reduce((s,e)=>s+Number(e.amount),0);
+  const calcs = {};
+  GROUPS.forEach(g => calcs[g.key] = groupCalc(g.key));
+  const paidCount = payments.length;
+  let pendingCount = 0;
+  GROUPS.forEach(g => pendingCount += calcs[g.key].settlements.length);
+
+  let html = `
+    <div class="stats">
+      <div class="stat"><div class="k">Grand Total</div><div class="v">${inr(grand)}</div></div>
+      <div class="stat"><div class="k">Payments Done</div><div class="v">${paidCount}</div></div>
+      <div class="stat"><div class="k">Still Pending</div><div class="v">${pendingCount}</div></div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="label">★ Overall — Complete Balance Per Person</div>
+      <div class="muted-note" style="margin-bottom:8px;">Summary view only — actual payments are settled inside each group tab.</div>`;
+
+  const active = members.filter(m => GROUPS.some(g => m[g.col]));
+  if(!active.length){
+    html += `<div class="muted-note">No members assigned to groups yet.</div>`;
+  } else {
+    html += active.map(m=>{
+      let tot = 0;
+      const lines = GROUPS.filter(g=>m[g.col]).map(g=>{
+        const b = calcs[g.key].balances[m.name] || 0;
+        tot += b;
+        const cls = Math.abs(b)<1 ? "settled" : (b>0?"gets":"owes");
+        return `<div class="ov-line"><span class="g">${g.key}</span><span class="${cls}">${balText(b)}</span></div>`;
+      }).join("");
+      const tcls = Math.abs(tot)<1 ? "settled" : (tot>0?"gets":"owes");
+      return `<div class="ov-member">
+        <div class="ov-name">${esc(m.name)}</div>
+        ${lines}
+        <div class="ov-total"><span>Total position</span><span class="${tcls}">${balText(tot)}</span></div>
+      </div>`;
+    }).join("");
+  }
+  html += `<button class="btn fullbtn" id="copyOvBtn" onclick="copyOverall()">Copy Overall Balance for WhatsApp</button></div>`;
+
+  // per-group totals recap
+  html += `<div class="card" style="margin-top:16px;">
+    <div class="label">Group Totals</div>
+    ${GROUPS.map(g=>`
+      <div class="bal-row">
+        <div style="font-weight:600;">${g.key}</div>
+        <div>${inr(calcs[g.key].total)} <span class="item">· share ${inr(Math.round(calcs[g.key].share))} × ${calcs[g.key].gMembers.length}</span></div>
+      </div>`).join("")}
+  </div>`;
+  return html;
+}
+
 loadAll();
 setInterval(loadAll, 12000);
 </script>
