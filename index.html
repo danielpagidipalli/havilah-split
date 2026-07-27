@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Havilah Wedding — Expense Split</title>
+<title>Havilah Wedding Ã¢â‚¬â€ Expense Split</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -53,6 +53,11 @@
   .gets{color:var(--green); font-weight:600;}
   .settled{color:var(--muted); font-weight:600;}
   .settle-card{border:1.5px solid var(--gold);}
+  .overall-card{border:2px solid var(--maroon); background:#FFF9F0;}
+  .summary-grid{display:grid;grid-template-columns:1.15fr 1fr 1fr 1.1fr;gap:8px;font-size:13px;}
+  .summary-grid>div{padding:8px 0;border-bottom:1px solid var(--line);}
+  .summary-grid .right{text-align:right;}
+  @media(max-width:420px){.summary-grid{grid-template-columns:1.1fr .9fr .9fr 1.1fr;font-size:11px;gap:4px;}}
   .txn{background:var(--panel2); border-radius:10px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; font-size:15px; margin-bottom:8px;}
   .txn .amt{font-family:'Cormorant Garamond',serif; font-size:19px; color:var(--maroon); font-weight:600;}
   .fullbtn{width:100%; margin-top:8px;}
@@ -65,23 +70,23 @@
 <body>
 
 <header>
-  <div class="eyebrow">✦ Family Expense Sharing ✦</div>
+  <div class="eyebrow">Ã¢Å“Â¦ Family Expense Sharing Ã¢Å“Â¦</div>
   <h1>Havilah Wedding</h1>
   <div class="subtitle" id="grandline">Each group splits equally among its own members.</div>
   <div class="syncbar">
-    <span class="syncstate" id="syncstate">● Connecting…</span>
-    <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+    <span class="syncstate" id="syncstate">Ã¢â€”Â ConnectingÃ¢â‚¬Â¦</span>
+    <button class="refresh-btn" onclick="loadAll()">Ã¢â€ Â» Refresh</button>
   </div>
 </header>
 
 <main>
   <div class="error-banner" id="errbox"></div>
 
-  <div class="notice">Shared board — everyone with the link sees and edits the same list. No login needed.</div>
+  <div class="notice">Shared board Ã¢â‚¬â€ everyone with the link sees and edits the same list. No login needed.</div>
 
   <!-- MEMBERS -->
   <div class="card">
-    <div class="label">Members — tick the groups each person belongs to</div>
+    <div class="label">Members Ã¢â‚¬â€ tick the groups each person belongs to</div>
     <div class="row">
       <input id="newName" placeholder="Name (e.g. Daniel)" onkeydown="if(event.key==='Enter')addMember()">
       <button class="btn" onclick="addMember()">Add</button>
@@ -113,7 +118,7 @@ let expenses = [];  // {id,member,grp,item,amount}
 let activeGroup = "Bachelors";
 let lastSig = "";
 
-const inr = n => "₹" + Number(n||0).toLocaleString("en-IN",{maximumFractionDigits:0});
+const inr = n => "Ã¢â€šÂ¹" + Number(n||0).toLocaleString("en-IN",{maximumFractionDigits:0});
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 function showErr(msg){
@@ -122,7 +127,7 @@ function showErr(msg){
 }
 function hideErr(){ document.getElementById("errbox").style.display = "none"; }
 
-function setSync(t){ document.getElementById("syncstate").textContent = "● " + t; }
+function setSync(t){ document.getElementById("syncstate").textContent = "Ã¢â€”Â " + t; }
 
 async function loadAll(){
   try{
@@ -214,6 +219,18 @@ function groupCalc(gkey){
   return { gMembers, gExps, total, share, paidBy, balances, settlements: settle(balances) };
 }
 
+function overallCalc(){
+  const paidBy={}, shareBy={}, balances={};
+  members.forEach(m=>{paidBy[m.name]=0;shareBy[m.name]=0;balances[m.name]=0;});
+  GROUPS.forEach(g=>{
+    const c=groupCalc(g.key);
+    c.gMembers.forEach(m=>shareBy[m.name]=(shareBy[m.name]||0)+c.share);
+    c.gExps.forEach(e=>paidBy[e.member]=(paidBy[e.member]||0)+Number(e.amount));
+    Object.entries(c.balances).forEach(([n,b])=>balances[n]=(balances[n]||0)+b);
+  });
+  return {paidBy,shareBy,balances,settlements:settle(balances)};
+}
+
 function settle(balances){
   const cr=[], de=[];
   Object.entries(balances).forEach(([n,b])=>{
@@ -234,17 +251,17 @@ function settle(balances){
 // ---------------- COPY ----------------
 async function copySummary(){
   const c = groupCalc(activeGroup);
-  let msg = "*HAVILAH WEDDING — " + activeGroup + " Split*\n\n";
+  let msg = "*HAVILAH WEDDING Ã¢â‚¬â€ " + activeGroup + " Split*\n\n";
   msg += "Total spent: " + inr(c.total) + "\n";
   msg += "Members in this group: " + c.gMembers.length + "\n";
   msg += "Equal share: " + inr(Math.round(c.share)) + " per person\n\n*Paid:*\n";
-  c.gMembers.forEach(m => msg += "• " + m.name + ": " + inr(c.paidBy[m.name]||0) + "\n");
+  c.gMembers.forEach(m => msg += "Ã¢â‚¬Â¢ " + m.name + ": " + inr(c.paidBy[m.name]||0) + "\n");
   msg += "\n*Settlement:*\n";
-  if(!c.settlements.length) msg += "All settled — no payments needed.\n";
-  c.settlements.forEach(t => msg += "• " + t.from + " pays " + t.to + " " + inr(Math.round(t.amt)) + "\n");
+  if(!c.settlements.length) msg += "All settled Ã¢â‚¬â€ no payments needed.\n";
+  c.settlements.forEach(t => msg += "Ã¢â‚¬Â¢ " + t.from + " pays " + t.to + " " + inr(Math.round(t.amt)) + "\n");
   try{ await navigator.clipboard.writeText(msg);
     const b=document.getElementById("copyBtn");
-    b.textContent="Copied — paste in WhatsApp";
+    b.textContent="Copied Ã¢â‚¬â€ paste in WhatsApp";
     setTimeout(()=>{ b.textContent="Copy " + activeGroup + " Summary for WhatsApp"; },2000);
   }catch(e){ alert(msg); }
 }
@@ -278,7 +295,7 @@ function render(){
           <span class="chip ${m[g.col] ? "on" : ""}" onclick="toggleGroup('${m.id}','${g.col}',${m[g.col]})">${g.key}</span>
         `).join("")}
       </span>
-      <button class="xbtn" aria-label="Remove ${esc(m.name)}" onclick="deleteMember('${m.id}','${esc(m.name)}')">×</button>
+      <button class="xbtn" aria-label="Remove ${esc(m.name)}" onclick="deleteMember('${m.id}','${esc(m.name)}')">Ãƒâ€”</button>
     </div>
   `).join("") || `<div class="muted-note" style="margin-top:8px;">Add family members, then tick which groups they belong to.</div>`;
 
@@ -290,9 +307,20 @@ function render(){
     </button>`;
   }).join("");
 
+  const overall=overallCalc(), allNames=Object.keys(overall.balances).sort((a,b)=>a.localeCompare(b));
+  const totalAll=expenses.reduce((s,e)=>s+Number(e.amount),0);
+  let summaryHtml=`<div class="card overall-card">
+    <div class="label">Final settlement â€” all groups combined</div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:25px;color:var(--maroon);font-weight:600;">One clear balance for everyone</div>
+    <div class="muted-note" style="margin:5px 0 14px;">Bachelors, Marriage, and Suits are combined below.</div>
+    <div class="stats" style="margin-bottom:14px;"><div class="stat"><div class="k">Total spent</div><div class="v">${inr(totalAll)}</div></div><div class="stat"><div class="k">People owing</div><div class="v">${allNames.filter(n=>overall.balances[n]<-.01).length}</div></div><div class="stat"><div class="k">People receiving</div><div class="v">${allNames.filter(n=>overall.balances[n]>.01).length}</div></div></div>
+    <div class="label">Paid, share, and balance</div><div class="summary-grid"><div>Person</div><div class="right">Paid</div><div class="right">Share</div><div class="right">Final balance</div>
+    ${allNames.map(n=>{const b=overall.balances[n]||0;const text=Math.abs(b)<.01?"Settled":b>0?"Gets "+inr(Math.round(b)):"Owes "+inr(Math.round(-b));const cls=Math.abs(b)<.01?"settled":b>0?"gets":"owes";return `<div><strong>${esc(n)}</strong></div><div class="right">${inr(overall.paidBy[n]||0)}</div><div class="right">${inr(Math.round(overall.shareBy[n]||0))}</div><div class="right ${cls}">${text}</div>`;}).join("")}</div></div>`;
+  if(overall.settlements.length)summaryHtml+=`<div class="card settle-card" style="margin-top:16px;"><div class="label">Final payments â€” who pays whom</div><div class="muted-note" style="margin:-4px 0 12px;">Make only these payments to settle every group.</div>${overall.settlements.map(t=>`<div class="txn"><div><span class="owes">${esc(t.from)}</span> <span class="item">pays</span> <span class="gets">${esc(t.to)}</span></div><div class="amt">${inr(Math.round(t.amt))}</div></div>`).join("")}</div>`;
+
   // group panel
   const c = groupCalc(activeGroup);
-  let html = `
+  let html = summaryHtml + `
     <div class="stats">
       <div class="stat"><div class="k">${esc(activeGroup)} Total</div><div class="v">${inr(c.total)}</div></div>
       <div class="stat"><div class="k">Group Members</div><div class="v">${c.gMembers.length}</div></div>
@@ -300,9 +328,9 @@ function render(){
     </div>
 
     <div class="card" style="margin-top:16px;">
-      <div class="label">Add expense → ${esc(activeGroup)}</div>`;
+      <div class="label">Add expense Ã¢â€ â€™ ${esc(activeGroup)}</div>`;
   if(c.gMembers.length === 0){
-    html += `<div class="muted-note">No members in ${esc(activeGroup)} yet — tick "${esc(activeGroup)}" for the right people in the member list above.</div>`;
+    html += `<div class="muted-note">No members in ${esc(activeGroup)} yet Ã¢â‚¬â€ tick "${esc(activeGroup)}" for the right people in the member list above.</div>`;
   } else {
     html += `
       <div style="display:grid; gap:10px;">
@@ -312,7 +340,7 @@ function render(){
         </select>
         <input id="itemInp" placeholder="What was purchased (e.g. Decoration, Cake, Suit stitching)">
         <div class="row">
-          <input id="amtInp" type="number" inputmode="decimal" placeholder="Amount ₹" onkeydown="if(event.key==='Enter')addExpense()">
+          <input id="amtInp" type="number" inputmode="decimal" placeholder="Amount Ã¢â€šÂ¹" onkeydown="if(event.key==='Enter')addExpense()">
           <button class="btn" onclick="addExpense()">Add</button>
         </div>
       </div>`;
@@ -321,13 +349,13 @@ function render(){
 
   if(c.gExps.length){
     html += `<div class="card" style="margin-top:16px;">
-      <div class="label">${esc(activeGroup)} — Expense Log</div>
+      <div class="label">${esc(activeGroup)} Ã¢â‚¬â€ Expense Log</div>
       ${c.gExps.map(e=>`
         <div class="exp-row">
-          <div><span class="payer">${esc(e.member)}</span> <span class="item">— ${esc(e.item)}</span></div>
+          <div><span class="payer">${esc(e.member)}</span> <span class="item">Ã¢â‚¬â€ ${esc(e.item)}</span></div>
           <div style="display:flex; gap:10px; align-items:center;">
             <span style="font-weight:500;">${inr(e.amount)}</span>
-            <button class="xbtn" aria-label="Delete expense" onclick="deleteExpense('${e.id}')">×</button>
+            <button class="xbtn" aria-label="Delete expense" onclick="deleteExpense('${e.id}')">Ãƒâ€”</button>
           </div>
         </div>`).join("")}
     </div>`;
@@ -335,7 +363,7 @@ function render(){
 
   if(c.gMembers.length && c.total > 0){
     html += `<div class="card" style="margin-top:16px;">
-      <div class="label">${esc(activeGroup)} — Where Everyone Stands</div>
+      <div class="label">${esc(activeGroup)} Ã¢â‚¬â€ Where Everyone Stands</div>
       ${c.gMembers.map(m=>{
         const b = c.balances[m.name];
         const settled = Math.abs(b) < 1;
@@ -343,7 +371,7 @@ function render(){
         const txt = settled ? "Settled" : (b>0 ? "Gets back " + inr(Math.round(b)) : "Owes " + inr(Math.round(-b)));
         return `<div class="bal-row">
           <div><div style="font-weight:600;">${esc(m.name)}</div>
-          <div class="bal-sub">Paid ${inr(c.paidBy[m.name]||0)} · Share ${inr(Math.round(c.share))}</div></div>
+          <div class="bal-sub">Paid ${inr(c.paidBy[m.name]||0)} Ã‚Â· Share ${inr(Math.round(c.share))}</div></div>
           <div class="${cls}">${txt}</div>
         </div>`;
       }).join("")}
@@ -352,7 +380,7 @@ function render(){
 
   if(c.settlements.length){
     html += `<div class="card settle-card" style="margin-top:16px;">
-      <div class="label">${esc(activeGroup)} — Who Pays Whom</div>
+      <div class="label">${esc(activeGroup)} Ã¢â‚¬â€ Who Pays Whom</div>
       ${c.settlements.map(t=>`
         <div class="txn">
           <div><span class="owes">${esc(t.from)}</span> <span class="item">pays</span> <span class="gets">${esc(t.to)}</span></div>
@@ -384,3 +412,7 @@ setInterval(loadAll, 12000);
 </script>
 </body>
 </html>
+
+
+
+
