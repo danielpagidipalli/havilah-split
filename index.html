@@ -197,8 +197,16 @@ async function deleteExpense(id){
 
 // ---------------- PAYMENTS (Mark as Paid) ----------------
 async function markPaid(from, to, amt, grp){
-  if(!confirm(from + " paid " + to + " " + inr(amt) + " (" + grp + ") — mark as done?")) return;
-  const {error} = await db.from("payments").insert({grp, from_member:from, to_member:to, amount:amt});
+  const input = prompt(
+    from + " pays " + to + "  (" + grp + ")\n" +
+    "Pending: " + inr(amt) + "\n\n" +
+    "Enter amount paid (full or partial):", amt
+  );
+  if(input === null) return; // cancelled
+  const val = parseFloat(input);
+  if(!val || val <= 0){ alert("Enter a valid amount."); return; }
+  if(val > amt + 0.5){ alert("That is more than the pending " + inr(amt) + ". Enter " + inr(amt) + " or less."); return; }
+  const {error} = await db.from("payments").insert({grp, from_member:from, to_member:to, amount:val});
   if(error){ showErr("Could not record payment: " + error.message); return; }
   loadAll();
 }
@@ -414,7 +422,7 @@ function renderGroup(){
           <div><span class="owes">${esc(t.from)}</span> <span class="item">pays</span> <span class="gets">${esc(t.to)}</span></div>
           <div style="display:flex; gap:10px; align-items:center;">
             <span class="amt">${inr(Math.round(t.amt))}</span>
-            <button class="btn-small" onclick="markPaid('${esc(t.from)}','${esc(t.to)}',${Math.round(t.amt)},'${activeGroup}')">✓ Mark Paid</button>
+            <button class="btn-small" onclick="markPaid('${esc(t.from)}','${esc(t.to)}',${Math.round(t.amt)},'${activeGroup}')">✓ Paid…</button>
           </div>
         </div>`).join("");
     } else {
