@@ -411,6 +411,80 @@ loadAll();
 setInterval(loadAll, 12000);
 </script>
 </body>
+  <script>
+(function () {
+  function money(n) {
+    return "Rs. " + Math.round(n || 0).toLocaleString("en-IN");
+  }
+
+  function showFinalSettlement() {
+    if (!window.members || !window.expenses || !members.length) return;
+
+    const paid = {};
+    const share = {};
+    const balance = {};
+
+    members.forEach(function (m) {
+      paid[m.name] = 0;
+      share[m.name] = 0;
+      balance[m.name] = 0;
+    });
+
+    GROUPS.forEach(function (g) {
+      const c = groupCalc(g.key);
+
+      c.gMembers.forEach(function (m) {
+        share[m.name] = (share[m.name] || 0) + c.share;
+      });
+
+      c.gExps.forEach(function (e) {
+        paid[e.member] = (paid[e.member] || 0) + Number(e.amount);
+      });
+
+      Object.keys(c.balances).forEach(function (name) {
+        balance[name] = (balance[name] || 0) + c.balances[name];
+      });
+    });
+
+    const old = document.getElementById("final-settlement");
+    if (old) old.remove();
+
+    const people = Object.keys(balance).sort();
+    const payments = settle(balance);
+
+    let html = '<div id="final-settlement" class="card settle-card" style="margin:16px 0;">';
+    html += '<div class="label">Final Settlement - All Groups</div>';
+    html += '<p class="muted-note">Final balance after combining Bachelors, Marriage, and Suits.</p>';
+
+    people.forEach(function (name) {
+      const b = balance[name] || 0;
+      const text = Math.abs(b) < 1 ? "Settled" : b > 0 ? "Gets " + money(b) : "Owes " + money(-b);
+      const color = b > 0 ? "gets" : b < 0 ? "owes" : "settled";
+
+      html += '<div class="bal-row">';
+      html += '<div><strong>' + esc(name) + '</strong><div class="bal-sub">Paid ' + money(paid[name]) + ' | Share ' + money(share[name]) + '</div></div>';
+      html += '<div class="' + color + '">' + text + '</div>';
+      html += '</div>';
+    });
+
+    html += '<div class="label" style="margin-top:16px;">Who Pays Whom</div>';
+
+    if (!payments.length) {
+      html += '<div class="settled">Everyone is settled.</div>';
+    } else {
+      payments.forEach(function (p) {
+        html += '<div class="txn"><div><span class="owes">' + esc(p.from) + '</span> pays <span class="gets">' + esc(p.to) + '</span></div><div class="amt">' + money(p.amt) + '</div></div>';
+      });
+    }
+
+    html += "</div>";
+
+    document.getElementById("groupPanel").insertAdjacentHTML("beforebegin", html);
+  }
+
+  setInterval(showFinalSettlement, 1000);
+})();
+</script>
 </html>
 
 
